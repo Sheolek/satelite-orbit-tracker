@@ -1,0 +1,5 @@
+__VERSION__="0.0.0"
+__DATE__="05.08.2026"
+__AUTHOR__="Sheolek"
+__EMAIL__="Krzysztofd_1999@wp.pl"
+__STATUS__="init"

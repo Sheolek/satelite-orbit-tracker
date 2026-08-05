@@ -1,0 +1,23 @@
+[project]
+name = "satelite-orbit-tracker"
+version = "0.0.1"
+dynamic = ["dependencies"]
+requires-python = ">=3.8"
+authors = [
+  {name = "Sheolek", email = "krzysztofd_1999@wp.pl"}
+]
+maintainers = [
+  {name = "Sheolek", email = "krzysztofd_1999@wp.pl"}
+]
+description = "Lovely Spam! Wonderful Spam!"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENCSE.txt"]
+keywords = ["space", "satelite", "tracking", "TLE"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Programming Language :: Python"
+]
+
+[tool.setuptools.dynamic]
+dependencies = {file = ["requirements.txt"]}
