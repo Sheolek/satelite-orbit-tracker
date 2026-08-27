@@ -1,5 +1,6 @@
-import requests
-from datetime import datetime
+import httpx
+from datetime import datetime, timedelta, timezone
+from dataclasses import dataclass
 
 CATEGORIES = [
     "stations",   # Space stations (ISS, Tiangong, etc.)
@@ -13,6 +14,7 @@ CATEGORIES = [
     "analyst",    # Analyst-tracked objects
 ]
 
+@dataclass
 class ParsedTLE:
     """Parsed TLE data with metadata.
 
@@ -58,32 +60,73 @@ class TLEFetcher:
         self.base_url = base_url
         self.timeout = timeout
 
-    def fetch_by_category(self, category: str) -> list[ParsedTLE]:
+    async def fetch_by_category(self, category: str) -> list[ParsedTLE]:
         if category not in CATEGORIES:
             return []
         params = {
             'GROUP': category,
             'FORMAT': "3le"
         }
-        response = requests.get(self.getEndpoint, params=params)
-        print(response)
-        return self.parseResponse(response)
+        url = f"{self.base_url}"
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
+            response = await client.get(url, params=params)
+            response.raise_for_status()
 
-    def parseResponse(self, response: requests.Response):
-        if response.status_code != 200:
-            return [response.status_code, []]
-        print(response.text)
-        tleData = self.parseTleBody(response.text)
-        return [response.status_code, tleData]
+        text = response.text.strip()
 
-    def parseTleBody(self, tleBody):
-        lines = tleBody.strip().splitlines()
-        tleProcessedData = []
+        return self.parse3le(text)
+
+
+    @staticmethod
+    def parse3le(text: str) -> list[ParsedTLE]:
+        if not text or "No GP data found" in text:
+            return []
+
+        lines = text.strip().splitlines()
+        tles: list[ParsedTLE] = []
         for i in range(0, len(lines), 3):
+            # extract name and lines
             name = lines[i].strip()
             line1 = lines[i+1]
             line2 = lines[i+2]
-            id = line1[2:7]
-            epoch = line1[18:32]
-            tleProcessedData.append([name, line1, line2, id, epoch])
-        return tleProcessedData
+
+            # extract tle values
+            norad_id = int(line1[2:7])
+            # epoch needs to be proccessed
+            epoch = TLEFetcher._parse_epoch(line1[18:32].strip())
+            incl = float(line2[8:16].strip())
+            raan = float(line2[17:25].strip())
+            eccentricity = float("0." + line2[26:33].strip())
+            arg_perigee = float(line2[34:42].strip())
+            mean_anomaly = float(line2[43:51].strip())
+            mean_motion = float(line2[52:63].strip())
+            intl_des = line1[9:17].strip()
+            tles.append(
+                ParsedTLE(
+                    name=name,
+                    norad_id=norad_id,
+                    line1=line1,
+                    line2=line2,
+                    epoch=epoch,
+                    inclination=incl,
+                    raan=raan,
+                    eccentricity=eccentricity,
+                    arg_perigee=arg_perigee,
+                    mean_anomaly=mean_anomaly,
+                    mean_motion=mean_motion,
+                    international_designator=intl_des,
+                )
+            )
+        return tles
+
+    @staticmethod
+    def _parse_epoch(epoch_str: str) -> datetime:
+        year_2digit = int(epoch_str[:2])
+        day_of_year = float(epoch_str[2:])
+        if year_2digit >= 57:
+            year = 1900 + year_2digit
+        else:
+            year = 2000 + year_2digit
+        epoch = datetime(year, 1, 1, tzinfo=timezone.utc) + timedelta(days=day_of_year - 1)
+
+        return epoch
