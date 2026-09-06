@@ -2,6 +2,8 @@ import httpx
 from datetime import datetime, timedelta, timezone
 from dataclasses import dataclass
 
+from app.core.config import settings
+
 CATEGORIES = [
     "stations",   # Space stations (ISS, Tiangong, etc.)
     "visual",     # Visually brightest satellites (for naked-eye observation)
@@ -53,12 +55,9 @@ class ParsedTLE:
     international_designator: str
 
 class TLEFetcher:
-    base_url = "https://celestrak.org/NORAD/elements/gp.php"
-
-    # TODO add default values
     def __init__(self, base_url: str | None = None, timeout: float | None = None) -> None:
-        self.base_url = base_url
-        self.timeout = timeout
+        self.base_url = base_url or settings.CELESTRAK_BASE_URL
+        self.timeout = timeout or settings.CELESTRAK_TIMEOUT
 
     async def fetch_by_category(self, category: str) -> list[ParsedTLE]:
         if category not in CATEGORIES:
